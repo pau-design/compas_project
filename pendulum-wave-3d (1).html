@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>3D Pendulum Wave (Visual Only)</title>
+  <style>
+    body{margin:0;font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;overflow:hidden;background: #9ddbff}
+    #canvas-container{position:relative;width:100vw;height:100vh}
+    #controls{position:absolute;bottom:30px;right:30px;display:flex;gap:15px;align-items:center;z-index:1000}
+    .speed-control{background:rgba(255, 255, 255, 0);backdrop-filter:blur(10px);padding:10px 15px;border-radius:30px;display:flex;align-items:center;gap:10px}
+    input[type="range"]{width:100px;height:4px;background:rgba(255,255,255,.2);border-radius:2px;outline:none;-webkit-appearance:none;appearance:none}
+    input[type="range"]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:14px;height:14px;background:rgba(255,255,255,.8);border-radius:50%;cursor:pointer;transition:.3s}
+    input[type="range"]::-webkit-slider-thumb:hover{transform:scale(1.2);background:#fff}
+    #speedValue{color:rgba(255, 255, 255, 0);font-size:13px;min-width:25px;font-family:'SF Mono','Monaco',monospace}
+    .play-controls{display:flex;gap:8px}
+    .control-btn{width:36px;height:36px;border-radius:50%;background:rgba(255, 255, 255, 0.284);backdrop-filter:blur(10px);border:none;color:rgba(255,255,255,.8);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:16px;transition:.3s}
+    .control-btn:hover{background:rgba(255, 255, 255, 0.425);transform:scale(1.1)}
+    .control-btn:active{transform:scale(.95)}
+    #cameraControls{position:absolute;top:30px;left:30px;background:rgba(255,255,255,.95);backdrop-filter:blur(10px);padding:12px;border-radius:50%;box-shadow:0 5px 20px rgba(0,0,0,.1);width:40px;height:40px;display:flex;align-items:center;justify-content:center;cursor:help;transition:.3s}
+    #cameraControls:hover{transform:scale(1.1);box-shadow:0 8px 25px rgba(0,0,0,.15)}
+    #cameraControls::before{content:"🖱️";font-size:24px}
+    #cameraControls .tooltip{display:none;position:absolute;top:60px;left:0;background:rgba(255,255,255,.98);padding:15px;border-radius:10px;box-shadow:0 5px 20px rgba(0,0,0,.15);font-size:13px;color:#555;width:240px;z-index:1000}
+    #cameraControls:hover .tooltip{display:block}
+    #cameraControls .tooltip h4{margin:0 0 8px 0;color:#667eea;font-size:14px}
+    #cameraControls .tooltip div{margin:4px 0;line-height:1.3}
+    #cameraControls .tooltip kbd{background:#f0f0f0;padding:2px 5px;border-radius:3px;font-size:11px;border:1px solid #ddd}
+    #timeDisplay{position:absolute;top:30px;right:30px;color:rgba(255,255,255,.6);font-size:14px;font-family:'SF Mono','Monaco',monospace;letter-spacing:1px}
+    #formulaBox {
+      position: absolute;
+      bottom: 30px;
+      left: 30px;
+      /* Increase max-width to add more gap between formula and controls */
+      max-width: calc(100vw - 200px)!important;  
+      background: rgba(255, 255, 255, 0.419);
+      border-radius: 12px;
+      padding: 12px 20px;
+      margin-right: 16px;
+      font-family: 'Segoe UI', 'SF Mono', 'Monaco', monospace;
+      font-size: 18px;
+      color: #314155;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+      transition: background 0.3s, color 0.3s;
+      z-index: 1001;
+      user-select: none;
+      pointer-events: none;
+      left: 20px;
+    }
+    #formulaBox.highlight {
+      background: linear-gradient(90deg,#6BCB77 0%,#FFD93D 100%);
+      color: #222;
+      font-weight: bold;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.15);
+    }
+
+    .icon-wrap {
+  position: absolute;
+  top: 10px;     /* distancia desde arriba */
+  left: 20px;    /* distancia desde la izquierda */
+  z-index: 1002; /* asegura que quede visible */
+}
+    .icon-wrap img {
+  width: 150px;  /* ajusta el tamaño del círculo */
+}
+.logo-icon {
+  position: absolute;
+  top: 30px;
+  left: 85px; /* lo ubica a la derecha del círculo */
+  width: 28px;
+  height: auto;
+}
+
+
+
+
+    @media (max-width: 900px) {
+      #formulaBox {
+        max-width: calc(100vw - 200px)!important;
+        font-size: 15px;
+        padding: 10px 10px;
+       
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="canvas-container"></div>
+  <div class="icon-wrap">
+    <img src="Logo-compas.svg" alt="logo" class="logo-icon">
+  </div>
+
+  <div id="cameraControls">
+    <div class="tooltip">
+      <h4>Control de cámara</h4>
+      <div><strong>Mouse:</strong></div>
+      <div>• <kbd>Izquierda</kbd> Rotar</div>
+      <div>• <kbd>Derecha</kbd> Desplazar</div>
+      <div>• <kbd>Scroll</kbd> Zoom</div>
+      <div style="margin-top:6px"><strong>Teclado:</strong></div>
+      <div>• <kbd>WASD</kbd> Mover</div>
+      <div>• <kbd>Q/E</kbd> Arriba/abajo</div>
+      <div>• <kbd>Arrows</kbd> Rotar</div>
+      <div>• <kbd>+/-</kbd> Zoom</div>
+      <div>• <kbd>R</kbd> Restablecer</div>
+    </div>
+  </div>
+
+  <div id="timeDisplay"><span id="timeValue">00:00</span></div>
+
+  <div id="controls">
+    <div class="play-controls">
+      <button class="control-btn" id="startBtn">▶</button>
+      <button class="control-btn" id="pauseBtn">⏸</button>
+      <button class="control-btn" id="resetBtn">⏹</button>
+    </div>
+    <div class="speed-control">
+      <input type="range" id="speedSlider" min="0.1" max="2" step="0.05" value="0.6">
+      <span id="speedValue">0.6</span>
+    </div>
+    <!-- Volume control slider -->
+    <div class="speed-control">
+      <label for="volumeSlider" style="color:oklch(100% 0.00011 271.152 / 0.8);font-size:13px;">🔉</label>
+      <input type="range" id="volumeSlider" min="0" max="1" step="0.01" value="0.3">
+      <span id="volumeValue" style="color:rgba(255,255,255,.8);font-size:13px;">0.3</span>
+    </div>
+  </div>
+
+  <div id="formulaBox">
+  <div id="formulaExplanation" style="font-size:15px; color:#314155; margin-bottom:6px;">
+    Varios péndulos con longitudes distintas oscilan a diferentes velocidades.<br>
+  El período depende de la longitud (<b>T = 2π√(L/g)</b>).<br><br>
+  Su ángulo <b>θ(t)</b> varía como una onda coseno, donde <span style="color:#6BCB77;">θ₀</span> es la amplitud inicial y <span style="color:#FFD93D;">ω</span> la frecuencia.<br>
+  Cuando todos coinciden, el recuadro se ilumina.
+  </div>
+  <span id="formulaLatex">
+    θ(t) = θ₀ · cos(ω·t)
+  </span>
+</div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  
+  <script>
+    /* ========= ESCENA ========= */
+    /* ========= ESCENA ========= */
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x9ddbff); // ← cambiado
+    scene.fog = new THREE.Fog(0x9ddbff, 100, 300); // ← cambiado
+
+
+    const camera = new THREE.PerspectiveCamera(60, innerWidth/innerHeight, 0.1, 1000);
+    camera.position.set(0, 20, 60);
+    camera.lookAt(0, -10, 0);
+
+    const renderer = new THREE.WebGLRenderer({ antialias:true });
+    renderer.setSize(innerWidth, innerHeight);
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.setPixelRatio(devicePixelRatio);
+    document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+    // --- STATIC CLOUDS CANVAS ---
+const cloudsCanvas = document.createElement('canvas');
+cloudsCanvas.width = window.innerWidth;
+cloudsCanvas.height = window.innerHeight;
+cloudsCanvas.style.position = 'absolute';
+cloudsCanvas.style.top = '0';
+cloudsCanvas.style.left = '0';
+cloudsCanvas.style.width = '100vw';
+cloudsCanvas.style.height = '100vh';
+cloudsCanvas.style.zIndex = '0';
+cloudsCanvas.style.pointerEvents = 'none';
+cloudsCanvas.style.filter = 'blur(12px) opacity(0.7)';
+document.getElementById('canvas-container').prepend(cloudsCanvas);
+
+function drawCloudShape(ctx, x, y, scale = 1, color = 'rgba(255,255,255,0.45)') {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.scale(scale, scale);
+  ctx.beginPath();
+  // Draw a simple cloud shape with overlapping arcs
+  ctx.arc(0, 0, 60, Math.PI * 0.5, Math.PI * 1.5);
+  ctx.arc(60, -20, 40, Math.PI * 1, Math.PI * 2);
+  ctx.arc(100, 0, 50, Math.PI * 1.2, Math.PI * 1.9);
+  ctx.arc(80, 30, 35, Math.PI * 1.5, Math.PI * 0.5, true);
+  ctx.arc(40, 40, 40, Math.PI * 0, Math.PI * 1);
+  ctx.closePath();
+  ctx.globalAlpha = 1;
+  ctx.fillStyle = color;
+  ctx.shadowColor = '#fff';
+  ctx.shadowBlur = 40;
+  ctx.fill();
+  ctx.restore();
+}
+
+function drawStaticClouds(ctx, w, h) {
+  ctx.clearRect(0, 0, w, h);
+  // Place clouds only in top half and sides, not center
+  const clouds = [
+    { x: w * 0.15, y: h * 0.18, scale: 1.2 },
+    { x: w * 0.7, y: h * 0.13, scale: 1.0 },
+    { x: w * 0.35, y: h * 0.08, scale: 0.8 },
+    { x: w * 0.85, y: h * 0.22, scale: 1.1 },
+    { x: w * 0.1, y: h * 0.32, scale: 0.7 },
+    { x: w * 0.8, y: h * 0.32, scale: 0.8 }
+  ];
+  clouds.forEach(cloud => {
+    drawCloudShape(ctx, cloud.x, cloud.y, cloud.scale, 'rgba(255,255,255,0.45)');
+  });
+}
+
+// Initial draw
+const cloudsCtx = cloudsCanvas.getContext('2d');
+drawStaticClouds(cloudsCtx, cloudsCanvas.width, cloudsCanvas.height);
+
+// Redraw clouds on resize
+window.addEventListener('resize', () => {
+  cloudsCanvas.width = window.innerWidth;
+  cloudsCanvas.height = window.innerHeight;
+  drawStaticClouds(cloudsCtx, cloudsCanvas.width, cloudsCanvas.height);
+});
+
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+    scene.add(ambientLight);
+
+    const dir = new THREE.DirectionalLight(0xffffff, 0.8);
+    dir.position.set(10, 30, 10);
+    dir.castShadow = true;
+    dir.shadow.camera.left = -40;
+    dir.shadow.camera.right = 40;
+    dir.shadow.camera.top = 40;
+    dir.shadow.camera.bottom = -40;
+    dir.shadow.mapSize.set(2048, 2048);
+    scene.add(dir);
+
+    /* ========= CONTROLES DE CÁMARA (manual) ========= */
+    let mouseX=0, mouseY=0, isMouseDown=false, isRightMouseDown=false;
+    let panOffset = new THREE.Vector3(0,0,0);
+    const spherical = { theta:0, phi:Math.PI/2.5, radius:60 };
+
+    renderer.domElement.addEventListener('mousedown', e=>{
+      e.preventDefault();
+      if(e.button===0){ isMouseDown=true; mouseX=e.clientX; mouseY=e.clientY; }
+      else if(e.button===2){ isRightMouseDown=true; mouseX=e.clientX; mouseY=e.clientY; }
+    });
+    renderer.domElement.addEventListener('mousemove', e=>{
+      if(isMouseDown){
+        const dx=e.clientX-mouseX, dy=e.clientY-mouseY;
+        spherical.theta -= dx*0.01;
+        spherical.phi   -= dy*0.01;
+        spherical.phi = Math.max(0.1, Math.min(Math.PI-0.1, spherical.phi));
+        mouseX=e.clientX; mouseY=e.clientY;
+      } else if(isRightMouseDown){
+        const dx=e.clientX-mouseX, dy=e.clientY-mouseY;
+        const panSpeed=0.1, right=new THREE.Vector3(), up=new THREE.Vector3();
+        right.setFromMatrixColumn(camera.matrix,0);
+        up.setFromMatrixColumn(camera.matrix,1);
+        panOffset.add(right.multiplyScalar(-dx*panSpeed));
+        panOffset.add(up.multiplyScalar(dy*panSpeed));
+        mouseX=e.clientX; mouseY=e.clientY;
+      }
+    });
+    renderer.domElement.addEventListener('mouseup', e=>{
+      if(e.button===0) isMouseDown=false;
+      if(e.button===2) isRightMouseDown=false;
+    });
+    renderer.domElement.addEventListener('contextmenu', e=>e.preventDefault());
+    renderer.domElement.addEventListener('wheel', e=>{
+      e.preventDefault();
+      spherical.radius += e.deltaY*0.05;
+      spherical.radius = Math.max(10, Math.min(150, spherical.radius));
+    });
+
+    const key = {};
+    addEventListener('keydown', e=>{
+      key[e.key]=true;
+      if(e.key==='r' || e.key==='R') resetCamera();
+    });
+    addEventListener('keyup', e=> key[e.key]=false);
+
+    function updateCameraFromKeyboard(){
+      const move=0.5, rot=0.03;
+      if(key['w']||key['W']) panOffset.z -= move;
+      if(key['s']||key['S']) panOffset.z += move;
+      if(key['a']||key['A']) panOffset.x -= move;
+      if(key['d']||key['D']) panOffset.x += move;
+      if(key['q']||key['Q']) panOffset.y -= move;
+      if(key['e']||key['E']) panOffset.y += move;
+
+      if(key['ArrowLeft'])  spherical.theta += rot;
+      if(key['ArrowRight']) spherical.theta -= rot;
+      if(key['ArrowUp'])    spherical.phi   -= rot;
+      if(key['ArrowDown'])  spherical.phi   += rot;
+
+      if(key['+']||key['=']) spherical.radius -= 1;
+      if(key['-']||key['_']) spherical.radius += 1;
+
+      spherical.phi = Math.max(0.1, Math.min(Math.PI-0.1, spherical.phi));
+      spherical.radius = Math.max(10, Math.min(150, spherical.radius));
+    }
+    function resetCamera(){
+      spherical.theta=0; spherical.phi=Math.PI/2.5; spherical.radius=60; panOffset.set(0,0,0);
+    }
+
+    /* ========= PÉNDULOS ========= */
+    const NUM_PENDULUMS = 18;
+    const CYCLE_TIME = 60;
+    const BASE_OSCILLATIONS = 51;
+    const g = 9.81;
+    const INITIAL_AMPLITUDE = 10 * Math.PI / 180;
+
+    const colors = [
+      0xFF6B6B,0xFFD93D,0x6BCB77,0x4D96FF,0x9D4EDD,
+      0xFF6B6B,0xFFD93D,0x6BCB77,0x4D96FF,0x9D4EDD,
+      0xFF6B6B,0xFFD93D,0x6BCB77,0x4D96FF,0x9D4EDD,
+      0xFF6B6B,0xFFD93D,0x6BCB77
+    ];
+
+    const barWidth = 200;
+    const topBar = new THREE.Mesh(
+    new THREE.BoxGeometry(barWidth, 1.5, 3),
+    new THREE.MeshStandardMaterial({ 
+        color: 0xCCCCCC, // gris más claro
+        metalness: 0.1, 
+        roughness: 0.5 
+    })
+    );
+    topBar.position.y = 20; 
+    topBar.castShadow = true; 
+    topBar.receiveShadow = true; 
+    scene.add(topBar);
+
+    const pendulums = [];
+    const pendulumData = [];
+    let maxLength = 0;
+
+    for(let i=0;i<NUM_PENDULUMS;i++){
+      const Ni = BASE_OSCILLATIONS + i;
+      const Ti = CYCLE_TIME / Ni;
+      const L  = g * Math.pow(Ti/(2*Math.PI),2);
+      const omega = 2*Math.PI/Ti;
+      pendulumData.push({ length:L, omega, oscillations:Ni, period:Ti });
+      if(L>maxLength) maxLength=L;
+    }
+    const SCALE = 30 / maxLength;
+
+    for(let i=0;i<NUM_PENDULUMS;i++){
+      const d = pendulumData[i];
+      const visualLen = d.length * SCALE;
+
+      const group = new THREE.Group();
+
+      const string = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.08,0.08,visualLen,8),
+        new THREE.MeshStandardMaterial({ color:0x666666, metalness:0.5, roughness:0.5 }) // slightly darker gray
+      );
+      string.position.y = -visualLen/2; string.castShadow=true;
+
+      const bob = new THREE.Mesh(
+        new THREE.SphereGeometry(0.8,32,32),
+        new THREE.MeshStandardMaterial({
+          color: colors[i%colors.length],
+          metalness:0.3, roughness:0.4,
+          emissive: colors[i%colors.length], emissiveIntensity:0.08
+        })
+      );
+      bob.position.y = -visualLen; bob.castShadow=true; bob.receiveShadow=true;
+
+      group.add(string); group.add(bob);
+      const x = (i-(NUM_PENDULUMS-1)/2)*2.5;
+      group.position.set(x,20,0);
+      scene.add(group);
+
+      pendulums.push({
+        group, bob, string,
+        visualLength: visualLen,
+        physicsLength: d.length,
+        omega: d.omega,
+        period: d.period,
+        angle: 0,
+        prevAngle: 0,
+        prevPrevAngle: 0,
+        prevVelocity: 0,
+        velocity: 0
+      });
+    }
+
+    /* ========= VIENTO ========= */
+    let windEnabled=false, windPhase=0;
+    function applyWind(dt){
+      if(!windEnabled) return;
+      windPhase += dt*1.2;
+      const base = (Math.sin(windPhase)+Math.sin(windPhase*0.7)*0.5)*0.012;
+      pendulums.forEach((p,i)=>{
+        const w = base * (1 + Math.sin(windPhase+i*0.3)*0.3);
+        p.angle += w * dt;
+      });
+    }
+
+    /* ========= SIMULACIÓN ========= */
+    function updatePendulums(){
+      pendulums.forEach((p, i) => {
+        p.prevPrevAngle = p.prevAngle;
+        p.prevAngle = p.angle;
+        p.angle = INITIAL_AMPLITUDE * Math.cos(p.omega * simTime);
+        p.group.rotation.z = p.angle;
+
+        // Play note when moving left to right (angle increases past zero)
+        if (
+          audioEnabled && audioInitialized &&
+          p.prevAngle < 0 && p.angle >= 0
+        ) {
+          synths[i]?.triggerAttackRelease(notes[i % notes.length], "8n", undefined, 0.3); // velocity 0.3 for softer sound
+        }
+      });
+    }
+
+    let isAnimating=false, animationSpeed=0.6, simTime=0, lastTime=performance.now();
+
+    // Only reset lastTime when animation resumes
+    document.getElementById('startBtn').addEventListener('click', ()=>{
+      if(!isAnimating){
+        isAnimating=true;
+        lastTime=performance.now();
+      }
+    });
+    document.getElementById('pauseBtn').addEventListener('click', ()=>{ isAnimating=false; });
+    document.getElementById('resetBtn').addEventListener('click', ()=>{
+      isAnimating=false;
+      simTime=0;
+      updatePendulums();
+      document.getElementById('timeValue').textContent='00:00';
+    });
+
+    const speedSlider = document.getElementById('speedSlider');
+    const speedValue  = document.getElementById('speedValue');
+    speedSlider.addEventListener('input', e=>{
+      animationSpeed = parseFloat(e.target.value);
+      speedValue.textContent = animationSpeed.toFixed(2);
+    });
+
+    // Viento: Shift+W
+    addEventListener('keydown', e=>{
+      if((e.key==='w'||e.key==='W') && e.shiftKey){ windEnabled = !windEnabled; }
+    });
+
+    // Highlight formula when all pendulums are close to initial amplitude (in sync)
+function checkFormulaHighlight() {
+  // The formula is "fulfilled" when all pendulums are near their max amplitude (θ ≈ θ₀)
+  // We'll check if all are within 10% of INITIAL_AMPLITUDE
+  let allInSync = pendulums.every(p => Math.abs(Math.abs(p.angle) - INITIAL_AMPLITUDE) < INITIAL_AMPLITUDE * 0.10);
+  const formulaBox = document.getElementById('formulaBox');
+  if (allInSync) {
+    formulaBox.classList.add('highlight');
+  } else {
+    formulaBox.classList.remove('highlight');
+  }
+}
+
+    function animate(){
+      requestAnimationFrame(animate);
+      updateCameraFromKeyboard();
+
+      if(isAnimating){
+        const nowT = performance.now();
+        const dt = (nowT - lastTime)/1000;
+        simTime += dt * animationSpeed;
+        lastTime = nowT;
+
+        const m = Math.floor(simTime/60);
+        const s = Math.floor(simTime%60);
+        document.getElementById('timeValue').textContent = `${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`;
+
+        applyWind(dt*animationSpeed);
+        updatePendulums();
+
+        // Highlight formula if fulfilled
+        checkFormulaHighlight();
+      }
+
+      camera.position.x = spherical.radius * Math.sin(spherical.phi) * Math.sin(spherical.theta);
+      camera.position.y = spherical.radius * Math.cos(spherical.phi);
+      camera.position.z = spherical.radius * Math.sin(spherical.phi) * Math.cos(spherical.theta);
+      camera.position.add(panOffset);
+      camera.lookAt(panOffset.x, panOffset.y, panOffset.z);
+
+      renderer.render(scene, camera);
+    }
+    animate();
+
+    // Add Tone.js for sound
+const toneScript = document.createElement('script');
+toneScript.src = "https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.min.js";
+document.head.appendChild(toneScript);
+
+let audioEnabled = false;
+let audioInitialized = false;
+let synths = [];
+let volume; // Tone.Volume node
+const notes = [
+  "C4", "D4", "E4", "F4", "G4", "A4", "B4",
+  "C5", "D5", "E5", "F5", "G5", "A5", "B5",
+  "C6", "D6", "E6", "F6"
+];
+
+// Wait for Tone.js to load before initializing synths
+toneScript.onload = () => {
+  // Create a global volume node and set initial volume lower
+  volume = new Tone.Volume(-18).toDestination(); // -18 dB is softer
+  for (let i = 0; i < NUM_PENDULUMS; i++) {
+    synths[i] = new Tone.Synth({
+      envelope: { attack: 0.01, decay: 0.1, sustain: 0.2, release: 0.5 }
+    }).connect(volume);
+  }
+  audioInitialized = true;
+};
+
+// Volume control logic
+const volumeSlider = document.getElementById('volumeSlider');
+const volumeValue = document.getElementById('volumeValue');
+volumeSlider.addEventListener('input', e => {
+  const v = parseFloat(e.target.value);
+  volumeValue.textContent = v.toFixed(2);
+  if (volume) {
+    // Convert [0,1] to dB: 0 = -60dB (silent), 1 = 0dB (max)
+    volume.volume.value = Tone.gainToDb(v);
+  }
+});
+
+// Enable audio on first user gesture
+window.addEventListener('click', async () => {
+  if (!audioEnabled && audioInitialized) {
+    await Tone.start();
+    audioEnabled = true;
+  }
+});
+
+// 🔇 Pausar audio si la pestaña pierde foco
+document.addEventListener("visibilitychange", async () => {
+  if (document.hidden) {
+    Tone.Destination.mute = true;
+    if (melodyPattern && melodyPattern.state === "started") {
+      melodyPattern.stop();
+    }
+    if (Tone.Transport.state === "started") {
+      Tone.Transport.stop();
+    }
+  } else {
+    try {
+      await Tone.start();
+      if (audioEnabled && audioStarted) {
+        Tone.Destination.mute = false;
+        if (Tone.Transport.state !== "started") {
+          Tone.Transport.start();
+        }
+        if (melodyPattern && melodyPattern.state !== "started") {
+          melodyPattern.start(0);
+        }
+      }
+    } catch(e) {
+      console.warn("Tone.js unlock on visibilitychange failed:", e);
+    }
+  }
+});
+  </script>
+</body>
+</html>
